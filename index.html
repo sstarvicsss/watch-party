@@ -7,7 +7,22 @@
 
 <style>
 
+
 /* ===== BASE ===== */
+
+#syncOverlay {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: bold;
+  display: none;
+  z-index: 9999;
+}
+
 
 body {
   margin: 0;
@@ -52,8 +67,9 @@ input, button {
 #video {
   flex: 3;
   width: 100%;
-  height: 450px;
+  max-height: 450px;
   border-radius: 12px;
+  background: black;
 }
 
 /* ===== CHAT ===== */
@@ -133,18 +149,21 @@ input, button {
 
 <body>
 
+  <div id="syncOverlay">Syncing...</div>
+
 <h2>Cosa guardiamo stasera?? 🎬</h2>
 
 <div class="box">
 
   <div class="top">
-    <input id="videoUrl" placeholder="link Google Drive">
+    <input id="videoUrl" placeholder="link film">
     <button onclick="setVideo()">Carica film</button>
   </div>
 
   <div class="layout">
+    <video id="video" controls playsinline></video>
 
-    <iframe id="video" allow="autoplay"></iframe>
+
 
     <div id="chatContainer">
 
@@ -164,6 +183,17 @@ input, button {
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <script>
+
+  function showSync() {
+  const el = document.getElementById("syncOverlay");
+  el.style.display = "block";
+
+  setTimeout(() => {
+    el.style.display = "none";
+  }, 1200);
+}
+
+
 const firebaseConfig = {
   apiKey: "AIzaSyAc3uiIwTm4cructeGnlg2GJk_ocAx_6yQ",
   authDomain: "watch-party-af0e4.firebaseapp.com",
@@ -175,8 +205,14 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const room = db.ref("rooms/cinema");
+let serverOffset = 0;
+
+firebase.database().ref(".info/serverTimeOffset").on("value", snap => {
+  serverOffset = snap.val() || 0;
+});
 const video = document.getElementById("video");
 
+  let firstSync = true;
 let sync = false;
 
 /* ===== VIDEO ===== */
@@ -184,34 +220,42 @@ let sync = false;
 function setVideo() {
   const url = document.getElementById("videoUrl").value;
 
-  const id = url.match(/\/d\/(.*?)\//)?.[1];
-  const embed = "https://drive.google.com/file/d/" + id + "/preview";
-
-  video.src = embed;
+  video.src = url;
 
   room.set({
-    url: embed,
+    url: url,
     action: "pause",
     time: 0
   });
 
   room.child("chat").remove();
+
   document.getElementById("chatBox").innerHTML = "";
 }
-
 /* sync video */
 
 video.addEventListener("play", () => {
   if (sync) return;
-  room.set({ action: "play", time: video.currentTime });
+
+  room.update({
+    action: "play",
+    time: video.currentTime,
+    updatedAt: firebase.database.ServerValue.TIMESTAMP
+  });
 });
 
 video.addEventListener("pause", () => {
   if (sync) return;
-  room.set({ action: "pause", time: video.currentTime });
+
+  room.update({
+    action: "pause",
+    time: video.currentTime,
+    updatedAt: firebase.database.ServerValue.TIMESTAMP
+  });
 });
 
 room.on("value", snap => {
+
   const d = snap.val();
   if (!d) return;
 
@@ -221,15 +265,37 @@ room.on("value", snap => {
     video.src = d.url;
   }
 
-  if (d.time !== undefined) {
-    video.currentTime = d.time;
+const now = Date.now() + serverOffset;
+
+if (d.action && d.updatedAt) {
+  const diff = (now - d.updatedAt) / 1000;
+
+  let targetTime = d.time + diff;
+
+  // 🔊 SOLO AL PRIMO ACCESSO
+  if (firstSync) {
+    video.currentTime = targetTime;
+    showSync();
+    firstSync = false;
+  } else {
+    if (Math.abs(video.currentTime - targetTime) > 0.8) {
+      video.currentTime = targetTime;
+    }
   }
 
-  if (d.action === "play") video.play();
-  if (d.action === "pause") video.pause();
+  if (d.action === "play") {
+    video.play().catch(() => {});
+  }
 
-  setTimeout(() => sync = false, 300);
+  if (d.action === "pause") {
+    video.pause();
+  }
+}
+  setTimeout(() => {
+    sync = false;
+  }, 300);
 });
+
 
 /* ===== CHAT ===== */
 
@@ -263,6 +329,13 @@ function getAvatar(name) {
 }
 
 let username = prompt("Inserisci username:");
+
+document.getElementById("msg").addEventListener("keydown", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendMsg();
+  }
+});
 
 if (!username || username.trim() === "") {
   username = "guest";

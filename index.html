@@ -240,9 +240,9 @@ function setVideo() {
     action: "pause",
     time: 0
   });
-}
-  room.child("chat").remove();
 
+  room.child("chat").remove();
+}
   document.getElementById("chatBox").innerHTML = "";
 }
 /* sync video */

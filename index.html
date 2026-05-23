@@ -218,16 +218,29 @@ let sync = false;
 /* ===== VIDEO ===== */
 
 function setVideo() {
+
   const url = document.getElementById("videoUrl").value;
 
-  video.src = url;
+  const driveMatch = url.match(/\/d\/(.*?)\//);
+
+  if (!driveMatch) {
+    alert("Link non valido");
+    return;
+  }
+
+  const fileId = driveMatch[1];
+
+  const directUrl =
+    `https://drive.google.com/uc?export=download&id=${fileId}`;
+
+  video.src = directUrl;
 
   room.set({
-    url: url,
+    url: directUrl,
     action: "pause",
     time: 0
   });
-
+}
   room.child("chat").remove();
 
   document.getElementById("chatBox").innerHTML = "";

@@ -161,8 +161,9 @@ input, button {
   </div>
 
   <div class="layout">
-    <video id="video" controls playsinline></video>
-
+<iframe id="video" width="100%" height="450"
+style="border:none; border-radius:12px; background:black;"
+allowfullscreen></iframe>
 
 
     <div id="chatContainer">
@@ -233,8 +234,7 @@ function setVideo() {
   const directUrl =
     `https://drive.google.com/uc?export=download&id=${fileId}`;
 
-  video.src = directUrl;
-
+video.src = `https://drive.google.com/file/d/${fileId}/preview`;
   room.set({
     url: directUrl,
     action: "pause",

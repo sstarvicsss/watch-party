@@ -1,33 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Watch Party</title>
 
 <style>
-
-
-/* ===== BASE ===== */
-
-#syncOverlay {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.7);
-  padding: 10px 18px;
-  border-radius: 12px;
-  font-weight: bold;
-  display: none;
-  z-index: 9999;
-}
-
-
 body {
   margin: 0;
-  background: url("dd53ef82063c8ff6523c479a787f9824.jpg") no-repeat center center fixed;
-  background-size: cover;
+  background: black;
   color: white;
   font-family: Arial;
   display: flex;
@@ -35,18 +15,11 @@ body {
   align-items: center;
 }
 
-h2 {
-  margin-top: 20px;
-}
+h2 { margin: 20px; }
 
-.box {
-  width: 90%;
-  max-width: 1200px;
-}
+.box { width: 90%; max-width: 1200px; }
 
-.top {
-  margin-top: 10px;
-}
+.top { margin: 10px; }
 
 input, button {
   padding: 10px;
@@ -59,20 +32,16 @@ input, button {
   display: flex;
   gap: 15px;
   margin-top: 15px;
-  align-items: flex-start;
 }
-
-/* ===== VIDEO ===== */
 
 #video {
   flex: 3;
   width: 100%;
-  max-height: 450px;
+  height: 450px;
   border-radius: 12px;
+  border: none;
   background: black;
 }
-
-/* ===== CHAT ===== */
 
 #chatContainer {
   flex: 1;
@@ -90,111 +59,47 @@ input, button {
   padding: 10px;
 }
 
-/* messaggi */
-
 .message {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  padding: 10px 12px;
+  padding: 8px;
   margin-bottom: 6px;
-  border-radius: 14px;
-
-  background: var(--msg-color, #444);
-  color:  #111;
-
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  border-radius: 10px;
+  background: #333;
 }
-
-/* input chat */
-.chatInput {
-  display: flex;
-}
-
-/* ===== MOBILE ===== */
-
-@media (max-width: 768px) {
-
-  .layout {
-    flex-direction: column;
-  }
-
-  #video {
-    height: 220px;
-  }
-
-  #chatContainer {
-    height: 300px;
-  }
-
-  input, button {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .top {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .chatInput {
-    flex-direction: column;
-  }
-}
-
 </style>
 </head>
 
 <body>
 
-  <div id="syncOverlay">Syncing...</div>
-
-<h2>Cosa guardiamo stasera?? 🎬</h2>
+<h2>Watch Party 🎬</h2>
 
 <div class="box">
 
   <div class="top">
-    <input id="videoUrl" placeholder="link film">
+    <input id="videoUrl" placeholder="Incolla link Google Drive">
     <button onclick="setVideo()">Carica film</button>
   </div>
 
   <div class="layout">
-<iframe id="video" width="100%" height="450"
-style="border:none; border-radius:12px; background:black;"
-allowfullscreen></iframe>
 
+    <iframe id="video"></iframe>
 
     <div id="chatContainer">
-
       <div id="chatBox"></div>
 
-      <div class="chatInput">
-        <input id="msg" placeholder="scrivi messaggio">
+      <div>
+        <input id="msg" placeholder="messaggio">
         <button onclick="sendMsg()">send</button>
       </div>
-
     </div>
+
   </div>
 </div>
 
-<!-- Firebase -->
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <script>
-
-  function showSync() {
-  const el = document.getElementById("syncOverlay");
-  el.style.display = "block";
-
-  setTimeout(() => {
-    el.style.display = "none";
-  }, 1200);
-}
-
-
 const firebaseConfig = {
   apiKey: "AIzaSyAc3uiIwTm4cructeGnlg2GJk_ocAx_6yQ",
   authDomain: "watch-party-af0e4.firebaseapp.com",
@@ -204,66 +109,42 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
 const room = db.ref("rooms/cinema");
-let serverOffset = 0;
 
-firebase.database().ref(".info/serverTimeOffset").on("value", snap => {
-  serverOffset = snap.val() || 0;
-});
 const video = document.getElementById("video");
 
-  let firstSync = true;
-let sync = false;
-
-/* ===== VIDEO ===== */
+/* ================= VIDEO ================= */
 
 function setVideo() {
 
   const url = document.getElementById("videoUrl").value;
 
-  const driveMatch = url.match(/\/d\/(.*?)\//);
+  const match = url.match(/\/d\/(.*?)\//);
 
-  if (!driveMatch) {
+  if (!match) {
     alert("Link non valido");
     return;
   }
 
-  const fileId = driveMatch[1];
+  const id = match[1];
 
-  const directUrl =
-    `https://drive.google.com/uc?export=download&id=${fileId}`;
+  const embed = `https://drive.google.com/file/d/${id}/preview`;
 
-video.src = `https://drive.google.com/file/d/${fileId}/preview`;
+  video.src = embed;
+
   room.set({
-    url: directUrl,
+    url: embed,
     action: "pause",
-    time: 0
+    time: 0,
+    updatedAt: Date.now()
   });
-
-  room.child("chat").remove();
 }
-/* sync video */
 
-video.addEventListener("play", () => {
-  if (sync) return;
+/* ================= SYNC ================= */
 
-  room.update({
-    action: "play",
-    time: video.currentTime,
-    updatedAt: firebase.database.ServerValue.TIMESTAMP
-  });
-});
+let sync = false;
 
-video.addEventListener("pause", () => {
-  if (sync) return;
-
-  room.update({
-    action: "pause",
-    time: video.currentTime,
-    updatedAt: firebase.database.ServerValue.TIMESTAMP
-  });
-});
+video.addEventListener("load", () => {});
 
 room.on("value", snap => {
 
@@ -276,113 +157,43 @@ room.on("value", snap => {
     video.src = d.url;
   }
 
-const now = Date.now() + serverOffset;
-
-if (d.action && d.updatedAt) {
-  const diff = (now - d.updatedAt) / 1000;
-
-  let targetTime = d.time + diff;
-
-  // 🔊 SOLO AL PRIMO ACCESSO
-  if (firstSync) {
-    video.currentTime = targetTime;
-    showSync();
-    firstSync = false;
-  } else {
-    if (Math.abs(video.currentTime - targetTime) > 0.8) {
-      video.currentTime = targetTime;
-    }
-  }
-
   if (d.action === "play") {
-    video.play().catch(() => {});
+    video.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
   }
 
   if (d.action === "pause") {
-    video.pause();
+    video.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
   }
-}
-  setTimeout(() => {
-    sync = false;
-  }, 300);
+
+  sync = false;
 });
 
+/* ================= CHAT ================= */
 
-/* ===== CHAT ===== */
-
-const colors = [
-  "#f3f1e9",
-  "#c4502e",
-  "#a0e9a2",
-  "#96e6e4",
-  "#9f97e7",
-  "#edb4ea",
-  "#f1dbc2",
-  "#eaa8a4"
-];
-
-function getColor(name) {
-  let hash = 0;
-
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  return colors[Math.abs(hash) % colors.length];
-}
-function getAvatar(name) {
-  const avatars = ["😼","🤯","🧚🏻‍♀️","🧟‍♀️","👩‍🎨","🧌","🐒","🐌","🪲","🦑","🐞"];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return avatars[Math.abs(hash) % avatars.length];
-}
-
-let username = prompt("Inserisci username:");
-
-document.getElementById("msg").addEventListener("keydown", function(event) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    sendMsg();
-  }
-});
-
-if (!username || username.trim() === "") {
-  username = "guest";
-}
+let username = prompt("Username:");
+if (!username) username = "guest";
 
 function sendMsg() {
   const text = document.getElementById("msg").value;
   if (!text.trim()) return;
 
   room.child("chat").push({
-    text,
-    user: username.trim()
+    user: username,
+    text
   });
 
   document.getElementById("msg").value = "";
 }
 
 room.child("chat").on("child_added", snap => {
-  const data = snap.val();
+  const d = snap.val();
 
   const div = document.createElement("div");
   div.className = "message";
+  div.textContent = `${d.user}: ${d.text}`;
 
-  div.style.setProperty("--msg-color", getColor(data.user));
-
-  div.innerHTML = `
-    <span>${getAvatar(data.user)}</span>
-    <div><b>${data.user}:</b> ${data.text}</div>
-  `;
-
-  const chatBox = document.getElementById("chatBox");
-  chatBox.appendChild(div);
-
-  chatBox.scrollTop = chatBox.scrollHeight;
+  document.getElementById("chatBox").appendChild(div);
 });
-
 </script>
 
 </body>
